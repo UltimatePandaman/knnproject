@@ -8,3 +8,4 @@ click
 librosa
 tqdm
 Pillow
+numpy
