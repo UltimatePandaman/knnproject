@@ -106,7 +106,7 @@ class AdaIN(nn.Module):
         return (1 + gamma) * self.norm(x) + beta
 
 
-class AdainResBlk(nn.Module):
+class ResBlkDecoder(nn.Module):
     def __init__(self, dim_in, dim_out, style_dim=64, w_hpf=0,
                  actv=nn.LeakyReLU(0.2), upsample='none'):
         super().__init__()
@@ -119,8 +119,8 @@ class AdainResBlk(nn.Module):
     def _build_weights(self, dim_in, dim_out, style_dim=64):
         self.conv1 = nn.Conv2d(dim_in, dim_out, 3, 1, 1)
         self.conv2 = nn.Conv2d(dim_out, dim_out, 3, 1, 1)
-        self.norm1 = AdaIN(style_dim, dim_in)
-        self.norm2 = AdaIN(style_dim, dim_out)
+        self.norm1 = nn.InstanceNorm2d(dim_in, affine=True)
+        self.norm2 = nn.InstanceNorm2d(dim_out, affine=True)
         if self.learned_sc:
             self.conv1x1 = nn.Conv2d(dim_in, dim_out, 1, 1, 0, bias=False)
 
@@ -130,18 +130,18 @@ class AdainResBlk(nn.Module):
             x = self.conv1x1(x)
         return x
 
-    def _residual(self, x, s):
-        x = self.norm1(x, s)
+    def _residual(self, x):
+        x = self.norm1(x)
         x = self.actv(x)
         x = self.upsample(x)
         x = self.conv1(x)
-        x = self.norm2(x, s)
+        x = self.norm2(x)
         x = self.actv(x)
         x = self.conv2(x)
         return x
 
-    def forward(self, x, s):
-        out = self._residual(x, s)
+    def forward(self, x):
+        out = self._residual(x)
         if self.w_hpf == 0:
             out = (out + self._shortcut(x)) / math.sqrt(2)
         return out
@@ -165,7 +165,7 @@ class HighPass(nn.Module):
 # if that doesn't work I will try to introduce reintroduce the AdaINResBLK with the original speech as input
 # something similar is done in the TFAN block in CycleGAN-VC3
 class Generator(nn.Module):
-    def __init__(self, dim_in=48, style_dim=48, max_conv_dim=48*8, w_hpf=1, F0_channel=0):
+    def __init__(self, dim_in=48, max_conv_dim=48*8, w_hpf=1, F0_channel=0):
         super().__init__()
 
         self.stem = nn.Conv2d(1, dim_in, 3, 1, 1)
@@ -191,23 +191,23 @@ class Generator(nn.Module):
             self.encode.append(
                 ResBlk(dim_in, dim_out, normalize=True, downsample=_downtype))
             self.decode.insert(
-                0, ResBlk(dim_out, dim_in, upsample=_downtype))  # stack-like
+                0, ResBlkDecoder(dim_out, dim_in, upsample=_downtype))  # stack-like
             dim_in = dim_out
 
         # bottleneck blocks (encoder)
         for _ in range(2):
             self.encode.append(
-                ResBlk(dim_out, dim_out, normalize=True))
+                ResBlk(dim_out, dim_out))
         
         # F0 blocks 
         if F0_channel != 0:
             self.decode.insert(# I first try to change the AdaINResBlk and see if that works, I get rid of the style dimension
-                0, ResBlk(dim_out + int(F0_channel / 2), dim_out, normalize=True))
+                0, ResBlkDecoder(dim_out + int(F0_channel / 2), dim_out))
         
         # bottleneck blocks (decoder)
         for _ in range(2):
             self.decode.insert(
-                    0, ResBlk(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2), normalize=True))
+                    0, ResBlkDecoder(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2)))
         
         if F0_channel != 0:
             self.F0_conv = nn.Sequential(
@@ -220,7 +220,7 @@ class Generator(nn.Module):
                 'cuda' if torch.cuda.is_available() else 'cpu')
             self.hpf = HighPass(w_hpf, device)
 
-    def forward(self, x, s, masks=None, F0=None):            
+    def forward(self, x, masks=None, F0=None):            
         x = self.stem(x)
         cache = {}
         for block in self.encode:
@@ -234,7 +234,7 @@ class Generator(nn.Module):
             x = torch.cat([x, F0], axis=1)
 
         for block in self.decode:
-            x = block(x, s) # style embedding, styl řečníka
+            x = block(x) # style embedding, styl řečníka
             if (masks is not None) and (x.size(2) in [32, 64, 128]):
                 mask = masks[0] if x.size(2) in [32] else masks[1]
                 mask = F.interpolate(mask, size=x.size(2), mode='bilinear')
@@ -303,13 +303,13 @@ class Discriminator2d(nn.Module):
     def forward(self, x, y):
         out = self.get_feature(x)
         idx = torch.LongTensor(range(y.size(0))).to(y.device)
-        out = out[idx, y]  # (batch)
+        out = out[idx.long(), y.long()]  # (batch)
         return out
 
 
 def build_model(args, F0_model, ASR_model):
-    generator_a = Generator(args.dim_in, args.style_dim, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
-    generator_b = Generator(args.dim_in, args.style_dim, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
+    generator_a = Generator(args.dim_in, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
+    generator_b = Generator(args.dim_in, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
     discriminator = Discriminator(args.dim_in, args.num_domains, args.max_conv_dim, args.n_repeat)
     generator_ema_a = copy.deepcopy(generator_a)
     generator_ema_b = copy.deepcopy(generator_b)
@@ -324,3 +324,8 @@ def build_model(args, F0_model, ASR_model):
                      generator_b=generator_ema_b)
 
     return nets, nets_ema
+
+if __name__ == "main":
+    generator = Generator(64, 512, w_hpf=0, F0_channel=256)
+    
+    wav_path = "Data/p256/1.wav"
