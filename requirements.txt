@@ -1,0 +1,10 @@
+torch
+soundfile
+torchaudio
+munch
+pydub
+pyyaml
+click
+librosa
+tqdm
+Pillow
