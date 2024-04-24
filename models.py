@@ -158,6 +158,11 @@ class HighPass(nn.Module):
         return F.conv2d(x, filter, padding=1, groups=x.size(1))
 
 
+## the main obstacle is getting rid of style encoding from the Generator
+# this involves changing the AdaINResBlk
+# I try: changing to ResBLK, instance norm ResBLK (implemented, just turn it on) with affine transformation
+# if that doesn't work I will try to introduce reintroduce the AdaINResBLK with the original speech as input
+# something similar is done in the TFAN block in CycleGAN-VC3
 class Generator(nn.Module):
     def __init__(self, dim_in=48, style_dim=48, max_conv_dim=48*8, w_hpf=1, F0_channel=0):
         super().__init__()
@@ -185,7 +190,7 @@ class Generator(nn.Module):
             self.encode.append(
                 ResBlk(dim_in, dim_out, normalize=True, downsample=_downtype))
             self.decode.insert(
-                0, AdainResBlk(dim_out, dim_in, style_dim,
+                0, ResBlk(dim_out, dim_in,
                                w_hpf=w_hpf, upsample=_downtype))  # stack-like
             dim_in = dim_out
 
@@ -196,13 +201,13 @@ class Generator(nn.Module):
         
         # F0 blocks 
         if F0_channel != 0:
-            self.decode.insert(
-                0, AdainResBlk(dim_out + int(F0_channel / 2), dim_out, style_dim, w_hpf=w_hpf))
+            self.decode.insert(# I first try to change the AdaINResBlk and see if that works, I get rid of the style dimension
+                0, ResBlk(dim_out + int(F0_channel / 2), dim_out, normalize=True, w_hpf=w_hpf))
         
         # bottleneck blocks (decoder)
         for _ in range(2):
             self.decode.insert(
-                    0, AdainResBlk(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2), style_dim, w_hpf=w_hpf))
+                    0, ResBlk(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2), normalize=True, w_hpf=w_hpf))
         
         if F0_channel != 0:
             self.F0_conv = nn.Sequential(
