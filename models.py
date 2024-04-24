@@ -229,82 +229,17 @@ class Generator(nn.Module):
             x = torch.cat([x, F0], axis=1)
 
         for block in self.decode:
-            x = block(x, s)
+            x = block(x, s) # style embedding, styl řečníka
             if (masks is not None) and (x.size(2) in [32, 64, 128]):
                 mask = masks[0] if x.size(2) in [32] else masks[1]
                 mask = F.interpolate(mask, size=x.size(2), mode='bilinear')
                 x = x + self.hpf(mask * cache[x.size(2)])
 
         return self.to_out(x)
-
-
-class MappingNetwork(nn.Module):
-    def __init__(self, latent_dim=16, style_dim=48, num_domains=2, hidden_dim=384):
-        super().__init__()
-        layers = []
-        layers += [nn.Linear(latent_dim, hidden_dim)]
-        layers += [nn.ReLU()]
-        for _ in range(3):
-            layers += [nn.Linear(hidden_dim, hidden_dim)]
-            layers += [nn.ReLU()]
-        self.shared = nn.Sequential(*layers)
-
-        self.unshared = nn.ModuleList()
-        for _ in range(num_domains):
-            self.unshared += [nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
-                                            nn.ReLU(),
-                                            nn.Linear(hidden_dim, hidden_dim),
-                                            nn.ReLU(),
-                                            nn.Linear(hidden_dim, hidden_dim),
-                                            nn.ReLU(),
-                                            nn.Linear(hidden_dim, style_dim))]
-
-    def forward(self, z, y):
-        h = self.shared(z)
-        out = []
-        for layer in self.unshared:
-            out += [layer(h)]
-        out = torch.stack(out, dim=1)  # (batch, num_domains, style_dim)
-        idx = torch.LongTensor(range(y.size(0))).to(y.device)
-        s = out[idx, y]  # (batch, style_dim)
-        return s
-
-
-class StyleEncoder(nn.Module):
-    def __init__(self, dim_in=48, style_dim=48, num_domains=2, max_conv_dim=384):
-        super().__init__()
-        blocks = []
-        blocks += [nn.Conv2d(1, dim_in, 3, 1, 1)]
-
-        repeat_num = 4
-        for _ in range(repeat_num):
-            dim_out = min(dim_in*2, max_conv_dim)
-            blocks += [ResBlk(dim_in, dim_out, downsample='half')]
-            dim_in = dim_out
-
-        blocks += [nn.LeakyReLU(0.2)]
-        blocks += [nn.Conv2d(dim_out, dim_out, 5, 1, 0)]
-        blocks += [nn.AdaptiveAvgPool2d(1)]
-        blocks += [nn.LeakyReLU(0.2)]
-        self.shared = nn.Sequential(*blocks)
-
-        self.unshared = nn.ModuleList()
-        for _ in range(num_domains):
-            self.unshared += [nn.Linear(dim_out, style_dim)]
-
-    def forward(self, x, y):
-        h = self.shared(x)
-
-        h = h.view(h.size(0), -1)
-        out = []
-
-        for layer in self.unshared:
-            out += [layer(h)]
-
-        out = torch.stack(out, dim=1)  # (batch, num_domains, style_dim)
-        idx = torch.LongTensor(range(y.size(0))).to(y.device)
-        s = out[idx, y]  # (batch, style_dim)
-        return s
+    
+    
+    
+    
 
 class Discriminator(nn.Module):
     def __init__(self, dim_in=48, num_domains=2, max_conv_dim=384, repeat_num=4):
@@ -368,23 +303,19 @@ class Discriminator2d(nn.Module):
 
 
 def build_model(args, F0_model, ASR_model):
-    generator = Generator(args.dim_in, args.style_dim, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
-    mapping_network = MappingNetwork(args.latent_dim, args.style_dim, args.num_domains, hidden_dim=args.max_conv_dim)
-    style_encoder = StyleEncoder(args.dim_in, args.style_dim, args.num_domains, args.max_conv_dim)
+    generator_a = Generator(args.dim_in, args.style_dim, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
+    generator_b = Generator(args.dim_in, args.style_dim, args.max_conv_dim, w_hpf=args.w_hpf, F0_channel=args.F0_channel)
     discriminator = Discriminator(args.dim_in, args.num_domains, args.max_conv_dim, args.n_repeat)
-    generator_ema = copy.deepcopy(generator)
-    mapping_network_ema = copy.deepcopy(mapping_network)
-    style_encoder_ema = copy.deepcopy(style_encoder)
+    generator_ema_a = copy.deepcopy(generator_a)
+    generator_ema_b = copy.deepcopy(generator_b)
         
-    nets = Munch(generator=generator,
-                 mapping_network=mapping_network,
-                 style_encoder=style_encoder,
+    nets = Munch(generator_a=generator_a,
+                 generator_b=generator_b,
                  discriminator=discriminator,
                  f0_model=F0_model,
                  asr_model=ASR_model)
     
-    nets_ema = Munch(generator=generator_ema,
-                     mapping_network=mapping_network_ema,
-                     style_encoder=style_encoder_ema)
+    nets_ema = Munch(generator_a=generator_ema_a,
+                     generator_b=generator_ema_b)
 
     return nets, nets_ema
