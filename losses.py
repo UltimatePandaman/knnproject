@@ -17,6 +17,7 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
     # with real audios
     x_real_a.requires_grad_()
     x_real_b.requires_grad_()
+    y = torch.zeros(x_real_a.size(0))
     out_a = nets.discriminator(x_real_a, torch.zeros(x_real_a.size(0)))
     out_b = nets.discriminator(x_real_b, torch.ones(x_real_b.size(0)))
     loss_real = adv_loss(out_a, 1)
@@ -34,7 +35,7 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
     if use_con_reg:
         t = build_transforms()
         out_aug_a = nets.discriminator(t(x_real_a).detach(), torch.zeros(x_real_a.size(0)))
-        out_aug_b = nets.discriminator(t(x_real_b).detach(), torch.ones(x_real_b.size(0))
+        out_aug_b = nets.discriminator(t(x_real_b).detach(), torch.ones(x_real_b.size(0)))
         loss_con_reg += F.smooth_l1_loss(out_a, out_aug_a)
         loss_con_reg += F.smooth_l1_loss(out_b, out_aug_b)
     
@@ -143,8 +144,8 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     
     
     
-    out_a = nets.discriminator(x_fake_a, torch.zeros(x_fake_b.size(0))
-    out_b = nets.discriminator(x_fake_b, torch.ones(x_fake_a.size(0))
+    out_a = nets.discriminator(x_fake_a, torch.zeros(x_fake_b.size(0)))
+    out_b = nets.discriminator(x_fake_b, torch.ones(x_fake_a.size(0)))
     loss_adv = adv_loss(out_a, 1)
     loss_adv += adv_loss(out_b, 1)
     
@@ -190,8 +191,8 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     if use_adv_cls:
         out_de_a = nets.discriminator.classifier(x_fake_a)
         out_de_b = nets.discriminator.classifier(x_fake_b)
-        loss_adv_cls = F.cross_entropy(out_de_a, torch.zeros(x_fake_a.size(0))
-        loss_adv_cls += F.cross_entropy(out_de_b, torch.ones(x_fake_b.size(0))
+        loss_adv_cls = F.cross_entropy(out_de_a, torch.zeros(x_fake_a.size(0)))
+        loss_adv_cls += F.cross_entropy(out_de_b, torch.ones(x_fake_b.size(0)))
     else:
         loss_adv_cls = torch.zeros(1).mean()
         
