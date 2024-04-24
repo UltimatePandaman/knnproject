@@ -202,12 +202,12 @@ class Generator(nn.Module):
         # F0 blocks 
         if F0_channel != 0:
             self.decode.insert(# I first try to change the AdaINResBlk and see if that works, I get rid of the style dimension
-                0, ResBlk(dim_out + int(F0_channel / 2), dim_out, normalize=True, w_hpf=w_hpf))
+                0, ResBlk(dim_out + int(F0_channel / 2), dim_out, normalize=True))
         
         # bottleneck blocks (decoder)
         for _ in range(2):
             self.decode.insert(
-                    0, ResBlk(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2), normalize=True, w_hpf=w_hpf))
+                    0, ResBlk(dim_out + int(F0_channel / 2), dim_out + int(F0_channel / 2), normalize=True))
         
         if F0_channel != 0:
             self.F0_conv = nn.Sequential(
