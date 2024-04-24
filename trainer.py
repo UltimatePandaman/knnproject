@@ -187,10 +187,12 @@ class Trainer(object):
                 g_loss, g_losses_ref = compute_g_loss(
                     self.model, self.args.g_loss, x_real_a, x_real_b, use_adv_cls=use_adv_cls)
                 g_loss.backward()
-            self.optimizer.step('generator', scaler=scaler)
+            self.optimizer.step('generator_a', scaler=scaler)
+            self.optimizer.step('generator_b', scaler=scaler)
 
             # compute moving average of network parameters
-            self.moving_average(self.model.generator, self.model_ema.generator, beta=0.999)
+            self.moving_average(self.model.generator_a, self.model_ema.generator_a, beta=0.999)
+            self.moving_average(self.model.generator_b, self.model_ema.generator_b, beta=0.999)
             self.optimizer.scheduler()
 
             for key in d_losses_ref:
