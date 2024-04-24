@@ -127,81 +127,91 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     args = Munch(args)
     # compute ASR/F0 features (real)
     with torch.no_grad():
-        F0_real, GAN_F0_real, cyc_F0_real = nets.f0_model(x_real_a)
-        ASR_real = nets.asr_model.get_feature(x_real)
+        F0_real_a, GAN_F0_real_a, cyc_F0_real_a = nets.f0_model(x_real_a)
+        F0_real_b, GAN_F0_real_b, cyc_F0_real_b = nets.f0_model(x_real_b)
+        ASR_real_a = nets.asr_model.get_feature(x_real_a)
+        ASR_real_b = nets.asr_model.get_feature(x_real_b)
     
     # adversarial loss
-    x_fake = nets.generator(x_real, s_trg, masks=None, F0=GAN_F0_real)
-    out = nets.discriminator(x_fake, y_trg) 
-    loss_adv = adv_loss(out, 1)
+    x_fake_b = nets.generator_b(x_real_a, masks=None, F0=GAN_F0_real_a)
+    x_identity_a = nets.generator_a(x_real_a, masks=None, F0=GAN_F0_real_a)
+    x_recon_a = nets.generator_a(x_fake_b, masks=None, F0=GAN_F0_real_a)
+    
+    x_fake_a = nets.generator_a(x_real_b, masks=None, F0=GAN_F0_real_b)
+    x_identity_b = nets.generator_b(x_real_b, masks=None, F0=GAN_F0_real_b)
+    x_recon_b = nets.generator_b(x_fake_a, masks=None, F0=GAN_F0_real_b)
+    
+    
+    
+    out_a = nets.discriminator(x_fake_a, torch.zeros(x_fake_b.size(0))
+    out_b = nets.discriminator(x_fake_b, torch.ones(x_fake_a.size(0))
+    loss_adv = adv_loss(out_a, 1)
+    loss_adv += adv_loss(out_b, 1)
     
     # compute ASR/F0 features (fake)
-    F0_fake, GAN_F0_fake, _ = nets.f0_model(x_fake)
-    ASR_fake = nets.asr_model.get_feature(x_fake)
+    F0_fake_a, GAN_F0_fake_a, _ = nets.f0_model(x_fake_a)
+    F0_fake_b, GAN_F0_fake_b, _ = nets.f0_model(x_fake_b)
+    ASR_fake_a = nets.asr_model.get_feature(x_fake_a)
+    ASR_fake_b = nets.asr_model.get_feature(x_fake_b)
     
     # norm consistency loss
-    x_fake_norm = log_norm(x_fake)
-    x_real_norm = log_norm(x_real)
-    loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm - x_real_norm) - args.norm_bias))**2).mean()
+    x_fake_norm_a = log_norm(x_fake_a)
+    x_real_norm_a = log_norm(x_real_a)
+    x_fake_norm_b = log_norm(x_fake_b)
+    x_real_norm_b = log_norm(x_real_b)
+    loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
+    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
     
     # F0 loss
-    loss_f0 = f0_loss(F0_fake, F0_real)
-    
-    # style F0 loss (style initialization)
-    if x_refs is not None and args.lambda_f0_sty > 0 and not use_adv_cls:
-        F0_sty, _, _ = nets.f0_model(x_ref)
-        loss_f0_sty = F.l1_loss(compute_mean_f0(F0_fake), compute_mean_f0(F0_sty))
-    else:
-        loss_f0_sty = torch.zeros(1).mean()
+    loss_f0 = f0_loss(F0_fake_a, F0_real_a)
+    loss_f0 += f0_loss(F0_fake_b, F0_real_b)
     
     # ASR loss
-    loss_asr = F.smooth_l1_loss(ASR_fake, ASR_real)
-    
-    # style reconstruction loss
-    s_pred = nets.style_encoder(x_fake, y_trg)
-    loss_sty = torch.mean(torch.abs(s_pred - s_trg))
-    
-    # diversity sensitive loss
-    if z_trgs is not None:
-        s_trg2 = nets.mapping_network(z_trg2, y_trg)
-    else:
-        s_trg2 = nets.style_encoder(x_ref2, y_trg)
-    x_fake2 = nets.generator(x_real, s_trg2, masks=None, F0=GAN_F0_real)
-    x_fake2 = x_fake2.detach()
-    _, GAN_F0_fake2, _ = nets.f0_model(x_fake2)
-    loss_ds = torch.mean(torch.abs(x_fake - x_fake2))
-    loss_ds += F.smooth_l1_loss(GAN_F0_fake, GAN_F0_fake2.detach())
+    loss_asr = F.smooth_l1_loss(ASR_fake_a, ASR_real_a)
+    loss_asr += F.smooth_l1_loss(ASR_fake_b, ASR_real_b)
     
     # cycle-consistency loss
-    s_org = nets.style_encoder(x_real, y_org)
-    x_rec = nets.generator(x_fake, s_org, masks=None, F0=GAN_F0_fake)
-    loss_cyc = torch.mean(torch.abs(x_rec - x_real))
+    loss_cyc = torch.mean(torch.abs(x_recon_a - x_real_a))
+    loss_cyc += torch.mean(torch.abs(x_recon_b - x_real_b))
+    
     # F0 loss in cycle-consistency loss
     if args.lambda_f0 > 0:
-        _, _, cyc_F0_rec = nets.f0_model(x_rec)
-        loss_cyc += F.smooth_l1_loss(cyc_F0_rec, cyc_F0_real)
+        _, _, cyc_F0_rec_a = nets.f0_model(x_recon_a)
+        _, _, cyc_F0_rec_b = nets.f0_model(x_recon_b)
+        loss_cyc += F.smooth_l1_loss(cyc_F0_rec_a, cyc_F0_real_a)
+        loss_cyc += F.smooth_l1_loss(cyc_F0_rec_b, cyc_F0_real_b)
     if args.lambda_asr > 0:
-        ASR_recon = nets.asr_model.get_feature(x_rec)
-        loss_cyc += F.smooth_l1_loss(ASR_recon, ASR_real)
+        ASR_recon_a = nets.asr_model.get_feature(x_recon_a)
+        ASR_recon_b = nets.asr_model.get_feature(x_recon_b)
+        loss_cyc += F.smooth_l1_loss(ASR_recon_a, ASR_real_a)
+        loss_cyc += F.smooth_l1_loss(ASR_recon_b, ASR_real_b)
     
     # adversarial classifier loss
     if use_adv_cls:
-        out_de = nets.discriminator.classifier(x_fake)
-        loss_adv_cls = F.cross_entropy(out_de[y_org != y_trg], y_trg[y_org != y_trg])
+        out_de_a = nets.discriminator.classifier(x_fake_a)
+        out_de_b = nets.discriminator.classifier(x_fake_b)
+        loss_adv_cls = F.cross_entropy(out_de_a, torch.zeros(x_fake_a.size(0))
+        loss_adv_cls += F.cross_entropy(out_de_b, torch.ones(x_fake_b.size(0))
     else:
         loss_adv_cls = torch.zeros(1).mean()
+        
+    ## normalize the losses to the number of speakers
+    # mainly done for correct results in debugging
+    loss_adv = loss_adv * 0.5
+    loss_cyc = loss_cyc * 0.5
+    loss_norm = loss_norm * 0.5
+    loss_asr = loss_asr * 0.5
+    loss_f0 = loss_f0 * 0.5
+    loss_adv_cls = loss_adv_cls * 0.5
     
-    loss = args.lambda_adv * loss_adv + args.lambda_sty * loss_sty \
-           - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc\
-           + args.lambda_norm * loss_norm \
-           + args.lambda_asr * loss_asr \
-           + args.lambda_f0 * loss_f0 \
-           + args.lambda_f0_sty * loss_f0_sty \
-           + args.lambda_adv_cls * loss_adv_cls
+    loss = args.lambda_adv * loss_adv \
+            + args.lambda_cyc * loss_cyc\
+            + args.lambda_norm * loss_norm \
+            + args.lambda_asr * loss_asr \
+            + args.lambda_f0 * loss_f0 \
+            + args.lambda_adv_cls * loss_adv_cls
 
     return loss, Munch(adv=loss_adv.item(),
-                       sty=loss_sty.item(),
-                       ds=loss_ds.item(),
                        cyc=loss_cyc.item(),
                        norm=loss_norm.item(),
                        asr=loss_asr.item(),
