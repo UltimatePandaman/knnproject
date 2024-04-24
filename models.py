@@ -190,8 +190,7 @@ class Generator(nn.Module):
             self.encode.append(
                 ResBlk(dim_in, dim_out, normalize=True, downsample=_downtype))
             self.decode.insert(
-                0, ResBlk(dim_out, dim_in,
-                               w_hpf=w_hpf, upsample=_downtype))  # stack-like
+                0, ResBlk(dim_out, dim_in, upsample=_downtype))  # stack-like
             dim_in = dim_out
 
         # bottleneck blocks (encoder)
