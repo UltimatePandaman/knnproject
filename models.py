@@ -52,11 +52,12 @@ class UpSample(nn.Module):
 
 class ResBlk(nn.Module):
     def __init__(self, dim_in, dim_out, actv=nn.LeakyReLU(0.2),
-                 normalize=False, downsample='none'):
+                 normalize=False, downsample='none', upsample='none'):
         super().__init__()
         self.actv = actv
         self.normalize = normalize
         self.downsample = DownSample(downsample)
+        self.upsample = UpSample(upsample)
         self.learned_sc = dim_in != dim_out
         self._build_weights(dim_in, dim_out)
 
