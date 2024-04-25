@@ -13,13 +13,15 @@ import numpy as np
 def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=False, use_con_reg=False):
     args = Munch(args)
     
+    zeros = torch.zeros(x_real_a.size(0)).type(torch.LongTensor).to(x_real_a.device)
+    ones = torch.ones(x_real_b.size(0)).type(torch.LongTensor).to(x_real_b.device)
+    
     ### REAL AUDIOS ###
     # with real audios
     x_real_a.requires_grad_()
     x_real_b.requires_grad_()
-    y = torch.zeros(x_real_a.size(0))
-    out_a = nets.discriminator(x_real_a, torch.zeros(x_real_a.size(0)))
-    out_b = nets.discriminator(x_real_b, torch.ones(x_real_b.size(0)))
+    out_a = nets.discriminator(x_real_a, zeros)
+    out_b = nets.discriminator(x_real_b, ones)
     loss_real = adv_loss(out_a, 1)
     loss_real += adv_loss(out_b, 1)
     
@@ -34,8 +36,8 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
     loss_con_reg = torch.FloatTensor([0]).to(x_real_a.device)
     if use_con_reg:
         t = build_transforms()
-        out_aug_a = nets.discriminator(t(x_real_a).detach(), torch.zeros(x_real_a.size(0)))
-        out_aug_b = nets.discriminator(t(x_real_b).detach(), torch.ones(x_real_b.size(0)))
+        out_aug_a = nets.discriminator(t(x_real_a).detach(), zeros)
+        out_aug_b = nets.discriminator(t(x_real_b).detach(), ones)
         loss_con_reg += F.smooth_l1_loss(out_a, out_aug_a)
         loss_con_reg += F.smooth_l1_loss(out_b, out_aug_b)
     
@@ -51,13 +53,13 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
         x_recon_b = nets.generator_b(x_fake_a, masks=None, F0=F0_b)
         
     # Fake audios loss
-    out_a = nets.discriminator(x_fake_a, torch.zeros(x_fake_a.size(0)))
+    out_a = nets.discriminator(x_fake_a, zeros)
     out_b = nets.discriminator(x_fake_b, torch.ones(x_fake_b.size(0)))
     loss_fake = adv_loss(out_a, 0)
     loss_fake += adv_loss(out_b, 0)
     if use_con_reg:
-        out_aug_a = nets.discriminator(t(x_fake_a).detach(), torch.zeros(x_fake_a.size(0)))
-        out_aug_b = nets.discriminator(t(x_fake_b).detach(), torch.ones(x_fake_b.size(0)))
+        out_aug_a = nets.discriminator(t(x_fake_a).detach(), zeros)
+        out_aug_b = nets.discriminator(t(x_fake_b).detach(), ones)
         loss_con_reg += F.smooth_l1_loss(out_a, out_aug_a)
         loss_con_reg += F.smooth_l1_loss(out_b, out_aug_b)
     
@@ -67,27 +69,27 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
         out_de_a = nets.discriminator.classifier(x_fake_a)
         out_de_b = nets.discriminator.classifier(x_fake_b)
         ## here the ones and zeros are swapped because we want the original
-        loss_real_adv_cls = F.cross_entropy(out_de_a, torch.ones(x_fake_a.size(0)))
-        loss_real_adv_cls += F.cross_entropy(out_de_b, torch.zeros(x_fake_b.size(0)))
+        loss_real_adv_cls = F.cross_entropy(out_de_a.to(x_real_a.device), ones)
+        loss_real_adv_cls += F.cross_entropy(out_de_b.to(x_real_a.device), zeros)
         
         if use_con_reg:
             out_de_aug_a = nets.discriminator.classifier(t(x_fake_a).detach())
             out_de_aug_b = nets.discriminator.classifier(t(x_fake_b).detach())
-            loss_con_reg += F.smooth_l1_loss(out_de_a, out_de_aug_a)
-            loss_con_reg += F.smooth_l1_loss(out_de_b, out_de_aug_b)
+            loss_con_reg += F.smooth_l1_loss(out_de_a.to(x_real_a.device), out_de_aug_a.to(x_real_a.device))
+            loss_con_reg += F.smooth_l1_loss(out_de_b.to(x_real_a.device), out_de_aug_b.to(x_real_a.device))
     else:
         loss_real_adv_cls = torch.zeros(1).mean()
         
     ## Second step adversarial loss - loss on cycle-consistent audios
-    out_a = nets.discriminator(x_recon_a, torch.zeros(x_recon_a.size(0)))
-    out_b = nets.discriminator(x_recon_b, torch.ones(x_recon_b.size(0)))
+    out_a = nets.discriminator(x_recon_a, zeros)
+    out_b = nets.discriminator(x_recon_b, ones)
     loss_cycle = adv_loss(out_a, 0)
     loss_cycle += adv_loss(out_b, 0)
     if use_con_reg:
-        out_aug_a = nets.discriminator(t(x_recon_a).detach(), torch.zeros(x_recon_a.size(0)))
-        out_aug_b = nets.discriminator(t(x_recon_b).detach(), torch.ones(x_recon_b.size(0)))
-        loss_con_reg += F.smooth_l1_loss(out_a, out_aug_a)
-        loss_con_reg += F.smooth_l1_loss(out_b, out_aug_b)
+        out_aug_a = nets.discriminator(t(x_recon_a).detach(), zeros)
+        out_aug_b = nets.discriminator(t(x_recon_b).detach(), ones)
+        loss_con_reg += F.smooth_l1_loss(out_a.to(x_real_a.device), out_aug_a.to(x_real_a.device))
+        loss_con_reg += F.smooth_l1_loss(out_b.to(x_real_a.device), out_aug_b.to(x_real_a.device))
     
     # adversarial classifier loss
     if use_adv_cls:
@@ -95,14 +97,14 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
         out_de_b = nets.discriminator.classifier(x_recon_b)
         ## here I let the ones and zeros as they are because I want the cycle-consistent audios
         # and basically the audio originates from the correct source sample
-        loss_real_adv_cls += F.cross_entropy(out_de_a, torch.zeros(x_recon_a.size(0)))
-        loss_real_adv_cls += F.cross_entropy(out_de_b, torch.ones(x_recon_b.size(0)))
+        loss_real_adv_cls += F.cross_entropy(out_de_a.to(x_real_a.device), zeros)
+        loss_real_adv_cls += F.cross_entropy(out_de_b.to(x_real_a.device), ones)
         
         if use_con_reg:
             out_de_aug_a = nets.discriminator.classifier(t(x_recon_a).detach())
             out_de_aug_b = nets.discriminator.classifier(t(x_recon_b).detach())
-            loss_con_reg += F.smooth_l1_loss(out_de_a, out_de_aug_a)
-            loss_con_reg += F.smooth_l1_loss(out_de_b, out_de_aug_b)
+            loss_con_reg += F.smooth_l1_loss(out_de_a.to(x_real_a.device), out_de_aug_a.to(x_real_a.device))
+            loss_con_reg += F.smooth_l1_loss(out_de_b.to(x_real_a.device), out_de_aug_b.to(x_real_a.device))
     else:
         loss_real_adv_cls = torch.zeros(1).mean()
         
@@ -126,6 +128,10 @@ def compute_d_loss(nets, args, x_real_a, x_real_b, use_r1_reg=True, use_adv_cls=
 
 def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     args = Munch(args)
+    
+    zeros = torch.zeros(x_real_b.size(0)).type(torch.LongTensor).to(x_real_a.device)
+    ones = torch.ones(x_real_a.size(0)).type(torch.LongTensor).to(x_real_b.device)
+    
     # compute ASR/F0 features (real)
     with torch.no_grad():
         F0_real_a, GAN_F0_real_a, cyc_F0_real_a = nets.f0_model(x_real_a)
@@ -144,8 +150,8 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     
     
     
-    out_a = nets.discriminator(x_fake_a, torch.zeros(x_fake_b.size(0)))
-    out_b = nets.discriminator(x_fake_b, torch.ones(x_fake_a.size(0)))
+    out_a = nets.discriminator(x_fake_a, zeros)
+    out_b = nets.discriminator(x_fake_b, ones)
     loss_adv = adv_loss(out_a, 1)
     loss_adv += adv_loss(out_b, 1)
     
@@ -156,12 +162,12 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     ASR_fake_b = nets.asr_model.get_feature(x_fake_b)
     
     # norm consistency loss
-    x_fake_norm_a = log_norm(x_fake_a)
-    x_real_norm_a = log_norm(x_real_a)
-    x_fake_norm_b = log_norm(x_fake_b)
-    x_real_norm_b = log_norm(x_real_b)
-    loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
-    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
+    #x_fake_norm_a = log_norm(x_fake_a)
+    #x_real_norm_a = log_norm(x_real_a)
+    #x_fake_norm_b = log_norm(x_fake_b)
+    #x_real_norm_b = log_norm(x_real_b)
+    #loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
+    #loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
     
     # F0 loss
     loss_f0 = f0_loss(F0_fake_a, F0_real_a)
@@ -191,8 +197,8 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     if use_adv_cls:
         out_de_a = nets.discriminator.classifier(x_fake_a)
         out_de_b = nets.discriminator.classifier(x_fake_b)
-        loss_adv_cls = F.cross_entropy(out_de_a, torch.zeros(x_fake_a.size(0)))
-        loss_adv_cls += F.cross_entropy(out_de_b, torch.ones(x_fake_b.size(0)))
+        loss_adv_cls = F.cross_entropy(out_de_a, zeros)
+        loss_adv_cls += F.cross_entropy(out_de_b, ones)
     else:
         loss_adv_cls = torch.zeros(1).mean()
         
@@ -200,21 +206,21 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     # mainly done for correct results in debugging
     loss_adv = loss_adv * 0.5
     loss_cyc = loss_cyc * 0.5
-    loss_norm = loss_norm * 0.5
+    #loss_norm = loss_norm * 0.5
     loss_asr = loss_asr * 0.5
     loss_f0 = loss_f0 * 0.5
     loss_adv_cls = loss_adv_cls * 0.5
     
+    # odstraněno temporarily - norm loss
     loss = args.lambda_adv * loss_adv \
             + args.lambda_cyc * loss_cyc\
-            + args.lambda_norm * loss_norm \
             + args.lambda_asr * loss_asr \
             + args.lambda_f0 * loss_f0 \
             + args.lambda_adv_cls * loss_adv_cls
 
     return loss, Munch(adv=loss_adv.item(),
                        cyc=loss_cyc.item(),
-                       norm=loss_norm.item(),
+                       #norm=loss_norm.item(),
                        asr=loss_asr.item(),
                        f0=loss_f0.item(),
                        adv_cls=loss_adv_cls.item())
