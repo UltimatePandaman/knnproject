@@ -1,14 +1,14 @@
 log_dir: "Models/"
 save_freq: 2
-device: "cuda"
-epochs: 150
-batch_size: 2
-pretrained_model: "Models/epoch_00102.pth"
+device: "cuda" # change this to debug on CPU, don't actually train this model on CPU please...
+epochs: 3000
+batch_size: 2 # change this to utilize your GPU memory, batch of 5 takes about 10 GB
+pretrained_model: "Models/epoch_00102.pth" # start at a checkpoint
 load_only_params: false
 fp16_run: true
 
-train_data: "Data/train_list.txt"
-val_data: "Data/val_list.txt"
+train_data: "Data/train_list.txt" # prepare_train_list.ipynb places the datalists into these files
+val_data: "Data/val_list.txt" # but if you have your own datalists you may change this
 
 F0_path: "Utils/JDC/bst.t7"
 ASR_config: "Utils/ASR/config.yml"
