@@ -10,3 +10,5 @@ librosa
 tqdm
 Pillow
 numpy
+parallel_wavegan 
+scipy==1.12.0
