@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -q gpu
-#PBS -N Coqui-XTTS-data-generate
+#PBS -N KNN-StarGAN
 #PBS -l select=1:ncpus=1:ngpus=1:gpu_mem=10gb:mem=8gb:scratch_local=100gb
 #PBS -l walltime=24:00:00
 #PBS -m ae
@@ -19,7 +19,7 @@ echo "Loading modules at $(date)"
 module add anaconda3/2019.10
 module add cuda/8.0
 
-cd /storage/plzen1/home/${USER}/
+cd /storage/brno12-cerit/cd home/${USER}/
 source activate .conda/envs/${TASK}
 
 #### SCRATCH ####
@@ -30,7 +30,7 @@ cd ${TASK}
 
 #### DATA GENERATION ####
 echo "Training started at $(date)"
-python3 generate_tts.py || { echo >&2 "Calculation ended up erroneously (with a code $?) !!"; exit 3; }
+python3 train.py || { echo >&2 "Calculation ended up erroneously (with a code $?) !!"; exit 3; }
 
 #### COPY RESULTS ####
 echo "Copying results at $(date)"
