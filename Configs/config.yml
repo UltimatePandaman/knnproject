@@ -1,7 +1,7 @@
 log_dir: "Models/"
-save_freq: 2
+save_freq: 10
 device: "cuda" # change this to debug on CPU, don't actually train this model on CPU please...
-epochs: 3000
+epochs: 300
 batch_size: 2 # change this to utilize your GPU memory, batch of 5 takes about 10 GB
 pretrained_model: "Models/epoch_00102.pth" # start at a checkpoint
 load_only_params: false
