@@ -1,9 +1,9 @@
 log_dir: "Models/"
-save_freq: 10
+save_freq: 100
 device: "cuda" # change this to debug on CPU, don't actually train this model on CPU please...
-epochs: 300
-batch_size: 2 # change this to utilize your GPU memory, batch of 5 takes about 10 GB
-pretrained_model: "Models/epoch_00102.pth" # start at a checkpoint
+epochs: 3000
+batch_size: 1 # change this to utilize your GPU memory, batch of 5 takes about 10 GB
+pretrained_model: "Models/latest.pth" # start at a checkpoint
 load_only_params: false
 fp16_run: true
 
@@ -38,6 +38,7 @@ loss_params:
     lambda_f0: 5.
     lambda_adv: 2. # takže se bude generátor učit 2x rychleji než diskriminátor?
     lambda_adv_cls: 0.5 # takže se bude generátor učit 5x rychleji než klasifikátor původní domény?
+    lambda_id: 5. # pro zachování obsahu řeči, prý
     norm_bias: 0.5
   d_loss:
     lambda_reg: 1.
