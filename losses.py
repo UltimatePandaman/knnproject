@@ -162,12 +162,12 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     ASR_fake_b = nets.asr_model.get_feature(x_fake_b)
     
     # norm consistency loss
-    #x_fake_norm_a = log_norm(x_fake_a)
-    #x_real_norm_a = log_norm(x_real_a)
-    #x_fake_norm_b = log_norm(x_fake_b)
-    #x_real_norm_b = log_norm(x_real_b)
-    #loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
-    #loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
+    x_fake_norm_a = log_norm(x_fake_a)
+    x_real_norm_a = log_norm(x_real_a)
+    x_fake_norm_b = log_norm(x_fake_b)
+    x_real_norm_b = log_norm(x_real_b)
+    loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
+    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
     
     # F0 loss
     loss_f0 = f0_loss(F0_fake_a, F0_real_a)
@@ -180,6 +180,10 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     # cycle-consistency loss
     loss_cyc = torch.mean(torch.abs(x_recon_a - x_real_a))
     loss_cyc += torch.mean(torch.abs(x_recon_b - x_real_b))
+    
+    # identity loss - important for keeping the content as per paper
+    loss_id = torch.mean(torch.abs(x_identity_a - x_real_a))
+    loss_id += torch.mean(torch.abs(x_identity_b - x_real_b))
     
     # F0 loss in cycle-consistency loss
     if args.lambda_f0 > 0:
@@ -210,20 +214,25 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     loss_asr = loss_asr * 0.5
     loss_f0 = loss_f0 * 0.5
     loss_adv_cls = loss_adv_cls * 0.5
+    loss_id = loss_id * 0.5
     
     # odstraněno temporarily - norm loss
     loss = args.lambda_adv * loss_adv \
             + args.lambda_cyc * loss_cyc\
             + args.lambda_asr * loss_asr \
+            + args.lambda_norm * loss_norm \
             + args.lambda_f0 * loss_f0 \
-            + args.lambda_adv_cls * loss_adv_cls
+            + args.lambda_adv_cls * loss_adv_cls\
+            + args.lambda_id * loss_id
 
     return loss, Munch(adv=loss_adv.item(),
                        cyc=loss_cyc.item(),
-                       #norm=loss_norm.item(),
+                       norm=loss_norm.item(),
                        asr=loss_asr.item(),
                        f0=loss_f0.item(),
-                       adv_cls=loss_adv_cls.item())
+                       adv_cls=loss_adv_cls.item(),
+                       id=loss_id.item()
+                    )
     
 # for norm consistency loss
 def log_norm(x, mean=-4, std=4, dim=2):
