@@ -33,7 +33,7 @@ model_params:
 loss_params:
   g_loss:
     lambda_cyc: 5.
-    lambda_norm: 1.
+    lambda_norm: 0.1
     lambda_asr: 10.
     lambda_f0: 5.
     lambda_adv: 2. # takže se bude generátor učit 2x rychleji než diskriminátor?
