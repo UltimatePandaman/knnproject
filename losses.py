@@ -210,7 +210,7 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     # mainly done for correct results in debugging
     loss_adv = loss_adv * 0.5
     loss_cyc = loss_cyc * 0.5
-    #loss_norm = loss_norm * 0.5
+    loss_norm = loss_norm * 0.5
     loss_asr = loss_asr * 0.5
     loss_f0 = loss_f0 * 0.5
     loss_adv_cls = loss_adv_cls * 0.5
