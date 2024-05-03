@@ -162,12 +162,12 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     ASR_fake_b = nets.asr_model.get_feature(x_fake_b)"""
     
     # norm consistency loss
-    """x_fake_norm_a = log_norm(x_fake_a)
+    x_fake_norm_a = log_norm(x_fake_a)
     x_real_norm_a = log_norm(x_real_a)
     x_fake_norm_b = log_norm(x_fake_b)
     x_real_norm_b = log_norm(x_real_b)
     loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
-    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()"""
+    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
     
     # F0 loss
     """loss_f0 = f0_loss(F0_fake_a, F0_real_a)
@@ -210,7 +210,7 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     # mainly done for correct results in debugging
     loss_adv = loss_adv * 0.5
     loss_cyc = loss_cyc * 0.5
-    #loss_norm = loss_norm * 0.5
+    loss_norm = loss_norm * 0.5
     #loss_asr = loss_asr * 0.5
     #loss_f0 = loss_f0 * 0.5
     #loss_adv_cls = loss_adv_cls * 0.5
@@ -227,11 +227,12 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
             
     loss = args.lambda_adv * loss_adv \
             + args.lambda_cyc * loss_cyc\
-            + args.lambda_id * loss_id
+            + args.lambda_id * loss_id \
+            + args.lambda_norm * loss_norm \
 
     return loss, Munch(adv=loss_adv.item(),
                        cyc=loss_cyc.item(),
-                       #norm=loss_norm.item(),
+                       norm=loss_norm.item(),
                        #asr=loss_asr.item(),
                        #f0=loss_f0.item(),
                        #adv_cls=loss_adv_cls.item(),
