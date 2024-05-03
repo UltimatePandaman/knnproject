@@ -156,26 +156,26 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     loss_adv += adv_loss(out_b, 1)
     
     # compute ASR/F0 features (fake)
-    F0_fake_a, GAN_F0_fake_a, _ = nets.f0_model(x_fake_a)
+    """F0_fake_a, GAN_F0_fake_a, _ = nets.f0_model(x_fake_a)
     F0_fake_b, GAN_F0_fake_b, _ = nets.f0_model(x_fake_b)
     ASR_fake_a = nets.asr_model.get_feature(x_fake_a)
-    ASR_fake_b = nets.asr_model.get_feature(x_fake_b)
+    ASR_fake_b = nets.asr_model.get_feature(x_fake_b)"""
     
     # norm consistency loss
-    x_fake_norm_a = log_norm(x_fake_a)
+    """x_fake_norm_a = log_norm(x_fake_a)
     x_real_norm_a = log_norm(x_real_a)
     x_fake_norm_b = log_norm(x_fake_b)
     x_real_norm_b = log_norm(x_real_b)
     loss_norm = ((torch.nn.ReLU()(torch.abs(x_fake_norm_a - x_real_norm_a) - args.norm_bias))**2).mean()
-    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()
+    loss_norm += ((torch.nn.ReLU()(torch.abs(x_fake_norm_b - x_real_norm_b) - args.norm_bias))**2).mean()"""
     
     # F0 loss
-    loss_f0 = f0_loss(F0_fake_a, F0_real_a)
-    loss_f0 += f0_loss(F0_fake_b, F0_real_b)
+    """loss_f0 = f0_loss(F0_fake_a, F0_real_a)
+    loss_f0 += f0_loss(F0_fake_b, F0_real_b)"""
     
     # ASR loss
-    loss_asr = F.smooth_l1_loss(ASR_fake_a, ASR_real_a)
-    loss_asr += F.smooth_l1_loss(ASR_fake_b, ASR_real_b)
+    """loss_asr = F.smooth_l1_loss(ASR_fake_a, ASR_real_a)
+    loss_asr += F.smooth_l1_loss(ASR_fake_b, ASR_real_b)"""
     
     # cycle-consistency loss
     loss_cyc = torch.mean(torch.abs(x_recon_a - x_real_a))
@@ -186,7 +186,7 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
     loss_id += torch.mean(torch.abs(x_identity_b - x_real_b))
     
     # F0 loss in cycle-consistency loss
-    if args.lambda_f0 > 0:
+    """if args.lambda_f0 > 0:
         _, _, cyc_F0_rec_a = nets.f0_model(x_recon_a)
         _, _, cyc_F0_rec_b = nets.f0_model(x_recon_b)
         loss_cyc += F.smooth_l1_loss(cyc_F0_rec_a, cyc_F0_real_a)
@@ -195,42 +195,46 @@ def compute_g_loss(nets, args, x_real_a, x_real_b, use_adv_cls=False):
         ASR_recon_a = nets.asr_model.get_feature(x_recon_a)
         ASR_recon_b = nets.asr_model.get_feature(x_recon_b)
         loss_cyc += F.smooth_l1_loss(ASR_recon_a, ASR_real_a)
-        loss_cyc += F.smooth_l1_loss(ASR_recon_b, ASR_real_b)
+        loss_cyc += F.smooth_l1_loss(ASR_recon_b, ASR_real_b)"""
     
     # adversarial classifier loss
-    if use_adv_cls:
-        out_de_a = nets.discriminator.classifier(x_fake_a)
-        out_de_b = nets.discriminator.classifier(x_fake_b)
-        loss_adv_cls = F.cross_entropy(out_de_a, zeros)
-        loss_adv_cls += F.cross_entropy(out_de_b, ones)
-    else:
-        loss_adv_cls = torch.zeros(1).mean()
+    #if use_adv_cls:
+    #    out_de_a = nets.discriminator.classifier(x_fake_a)
+    #    out_de_b = nets.discriminator.classifier(x_fake_b)
+    #    loss_adv_cls = F.cross_entropy(out_de_a, zeros)
+    #    loss_adv_cls += F.cross_entropy(out_de_b, ones)
+    #else:
+    #    loss_adv_cls = torch.zeros(1).mean()
         
     ## normalize the losses to the number of speakers
     # mainly done for correct results in debugging
     loss_adv = loss_adv * 0.5
     loss_cyc = loss_cyc * 0.5
-    loss_norm = loss_norm * 0.5
-    loss_asr = loss_asr * 0.5
-    loss_f0 = loss_f0 * 0.5
-    loss_adv_cls = loss_adv_cls * 0.5
+    #loss_norm = loss_norm * 0.5
+    #loss_asr = loss_asr * 0.5
+    #loss_f0 = loss_f0 * 0.5
+    #loss_adv_cls = loss_adv_cls * 0.5
     loss_id = loss_id * 0.5
     
     # odstraněno temporarily - norm loss
+    #loss = args.lambda_adv * loss_adv \
+            #+ args.lambda_cyc * loss_cyc\
+            #+ args.lambda_asr * loss_asr \
+            #+ args.lambda_norm * loss_norm \
+            #+ args.lambda_f0 * loss_f0 \
+            #+ args.lambda_adv_cls * loss_adv_cls\
+            #+ args.lambda_id * loss_id
+            
     loss = args.lambda_adv * loss_adv \
             + args.lambda_cyc * loss_cyc\
-            + args.lambda_asr * loss_asr \
-            + args.lambda_norm * loss_norm \
-            + args.lambda_f0 * loss_f0 \
-            + args.lambda_adv_cls * loss_adv_cls\
             + args.lambda_id * loss_id
 
     return loss, Munch(adv=loss_adv.item(),
                        cyc=loss_cyc.item(),
-                       norm=loss_norm.item(),
-                       asr=loss_asr.item(),
-                       f0=loss_f0.item(),
-                       adv_cls=loss_adv_cls.item(),
+                       #norm=loss_norm.item(),
+                       #asr=loss_asr.item(),
+                       #f0=loss_f0.item(),
+                       #adv_cls=loss_adv_cls.item(),
                        id=loss_id.item()
                     )
     
