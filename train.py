@@ -13,6 +13,9 @@ import click
 import warnings
 warnings.simplefilter('ignore')
 
+## added datetime for checkpoint saving
+import datetime
+
 from functools import reduce
 from munch import Munch
 
@@ -37,6 +40,15 @@ torch.backends.cudnn.benchmark = True #
 
 @click.command()
 @click.option('-p', '--config_path', default='Configs/config.yml', type=str)
+
+## Notes: Zbyněk Lička
+## Changes:
+## 1. Changed the output filename for checkpoints
+## 2. Removed mapping network
+
+## Additionally non-original comments are denoted by a double hash (##)
+
+## For reference, check the original implementation: https://github.com/yl4579/StarGANv2-VC
 
 def main(config_path):
     config = yaml.safe_load(open(config_path))
@@ -134,7 +146,9 @@ def main(config_path):
                 for v in value:
                     writer.add_figure('eval_spec', v, epoch)
         if (epoch % save_freq) == 0:
-            trainer.save_checkpoint(osp.join(log_dir, 'epoch_%01d.pth' % (epoch % 10)))
+            today = datetime.date.today()
+            ## altered the filename for saving
+            trainer.save_checkpoint(osp.join(log_dir, f'latest_{str(today)}.pth'))
 
     return 0
 
