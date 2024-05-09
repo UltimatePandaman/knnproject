@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # ID souboru na Google Drive
-FILE_ID="1t7QQbu4YC_P1mv9puA_KgSomSFDsSzD6"
+FILE_ID="1nzTyyl-9A1Hmqya2Q_f2bpZkUoRjbZsY"
 
 # Directory where the contents of the ZIP archive should be extracted
-ZIPFILE="dataset.zip"
+ZIPFILE="models.zip"
 
 # Directory where the contents of the ZIP archive should be extracted
-DESTINATION="Data"
+DESTINATION="Models"
 
 # Instalace gdown pokud ještě není nainstalován
 if ! command -v gdown &> /dev/null; then
@@ -16,7 +16,7 @@ if ! command -v gdown &> /dev/null; then
 fi
 
 # Download the file
-echo "Downloading dataset..."
+echo "Downloading models..."
 gdown --id "$FILE_ID" --output "$ZIPFILE"
 
 # Check if the file was downloaded successfully
@@ -31,7 +31,7 @@ if [ -d "$DESTINATION" ]; then
 fi
 
 # Extract the ZIP archive
-echo "Extracting dataset..."
+echo "Extracting models..."
 unzip -q "$ZIPFILE"
 
 # Check if the archive was extracted successfully
