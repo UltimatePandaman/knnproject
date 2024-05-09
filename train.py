@@ -115,6 +115,7 @@ def main(config_path):
     _ = [model[key].to(device) for key in model]
     _ = [model_ema[key].to(device) for key in model_ema]
     scheduler_params_dict = {key: scheduler_params.copy() for key in model}
+    ## removed the mapping network learning rate
     optimizer = build_optimizer({key: model[key].parameters() for key in model},
                                       scheduler_params_dict=scheduler_params_dict)
 
@@ -146,9 +147,11 @@ def main(config_path):
                 for v in value:
                     writer.add_figure('eval_spec', v, epoch)
         if (epoch % save_freq) == 0:
-            today = datetime.date.today()
             ## altered the filename for saving
-            trainer.save_checkpoint(osp.join(log_dir, f'latest_{str(today)}.pth'))
+            now = datetime.datetime.now()
+            now = now.strftime("%d-%m-%Y_%H-%M-%S")
+            trainer.save_checkpoint(osp.join(log_dir, f'latest_{str(now)}.pth'))
+            ### end of change
 
     return 0
 
