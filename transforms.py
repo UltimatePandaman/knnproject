@@ -8,6 +8,10 @@ import torchaudio
 import torchaudio.functional as audio_F
 import random
 
+## Notes: Zbyněk Lička
+## For reference, check the original implementation: https://github.com/yl4579/StarGANv2-VC
+## Additionally non-original comments are denoted by a double hash (##)
+
 ## 1. RandomTimeStrech
 
 class TimeStrech(nn.Module):
