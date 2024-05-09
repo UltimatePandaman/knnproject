@@ -33,6 +33,14 @@ MEL_PARAMS = {
     "hop_length": 300
 }
 
+## Notes: Zbyněk Lička
+## Changes:
+## 1. MelDataset accepts a list of path tuples
+## 2. MelDataset now returns a tuple of mel tensors
+## 3. Collater now returns a batch of mel tensor tuples
+
+## For reference, check the original implementation: https://github.com/yl4579/StarGANv2-VC
+
 class MelDataset(torch.utils.data.Dataset):
     def __init__(self,
                  data_list,
