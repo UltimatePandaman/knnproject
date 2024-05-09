@@ -18,6 +18,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+## Notes: Zbyněk Lička
+## Changes:
+## 1. I have removed the AdaINResBlk and replaced it with ResBlk
+## 2. Removed all mentions of style encoder, style embedding, style dimension
+## 3. build model now returns two generators and a discriminator + pre-trained networks
+## 4. Altered the Generator class to work without style embedding
+## 5. Changed AdaINResBlk to ResBlkDecoder so Generator works without style embedding but still
+##    produces the right dimensions
+
+## For reference, check the original implementation: https://github.com/yl4579/StarGANv2-VC
+
 class DownSample(nn.Module):
     def __init__(self, layer_type):
         super().__init__()
