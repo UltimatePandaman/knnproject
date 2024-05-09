@@ -42,4 +42,11 @@ Added:
 
 Altered:
 + prepare_train_list.ipynb creates tuples of paths, also moved to main directory
-+ 
++ trainer.py removed mapping loss learning rate
++ train.py altered the batch as it now contains different data, altered the passing of arguments, removed mapping and style embedding loss calculation, replaced them by a single calculation
++ models.py removed style encoder, removed mapping network, replaced AdaINResBlk by ResBlkDecoder, altered the generator to not use style embedding, altered
++ readme.md Basically fully replaced by our own readme.md
++ losses.py most losses are now calculated for two real samples, added second step adversarial loss (including consitency regularization), added identity loss
++ meldataset.py altered the handling to produce two normalized mel-spectrograms, instead of a normalized mel-spectrogram, labels and reference mel-spectrograms
++ Data/VCTK.ipynb changed name to prepare_train_list.ipynb and completely revamped it, leaving only fractions of the original code
++ Demo/inference.ipynb moved to main directory, inference altered to output recordings for 2 speakers
