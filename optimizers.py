@@ -8,6 +8,10 @@ from torch.optim import Optimizer
 from functools import reduce
 from torch.optim import AdamW
 
+## Notes: Zbyněk Lička
+## For reference, check the original implementation: https://github.com/yl4579/StarGANv2-VC
+## Additionally non-original comments are denoted by a double hash (##)
+
 class MultiOptimizer:
     def __init__(self, optimizers={}, schedulers={}):
         self.optimizers = optimizers
