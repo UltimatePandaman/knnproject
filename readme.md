@@ -1,3 +1,5 @@
+<!--- Authors: Zbyněk Lička -->
+
 ### Installation
 Normal:
 ```bash
@@ -5,7 +7,7 @@ Normal:
 get_dataset.sh
 get_models.sh
 get_vocoder.sh
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### Training setup
@@ -21,7 +23,7 @@ val_data: "Data/val_list.txt"     # but if you have your own datalists you may c
 ```
 Then you just run.
 ```bash
-python train.py
+python3 train.py
 ```
 
 ### Inference
@@ -29,5 +31,15 @@ We prepared a small notebook for debugging inference. Just change the speakers i
 
 Inference of the whole testing set is done with `Data/test_list.txt`. Just place the path to the latest model into `Configs/config.yml` `pretrained_model:` option and run:
 ```bash
-python inference.py
+python3 inference.py
 ```
+
+
+### Files
+Added:
++ run.sh PBS script for training
++ get_dataset.sh script for dataset download
+
+Altered:
++ prepare_train_list.ipynb creates tuples of paths, also moved to main directory
++ 
