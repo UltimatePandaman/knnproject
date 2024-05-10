@@ -1,3 +1,5 @@
+# Author Daniel Prudky
+
 print(f"Importing libs")
 import os
 import torch

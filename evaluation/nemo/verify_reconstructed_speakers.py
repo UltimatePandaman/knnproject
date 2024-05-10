@@ -1,3 +1,5 @@
+# Author Daniel Prudky
+
 import os
 print("Loading NeMo library, this may take a while...")
 import nemo.collections.asr as nemo_asr
