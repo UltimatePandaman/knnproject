@@ -1,0 +1,11 @@
+## install the next two by hand in this order
+#"git+https://github.com/LahiLuk/YouTokenToMe"
+#nemo_toolkit['all']
+torch
+tqdm
+pandas
+librosa
+numpy
+matplotlib
+scipy
+pyeer
